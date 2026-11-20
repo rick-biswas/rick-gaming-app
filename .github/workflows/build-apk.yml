@@ -17,19 +17,41 @@ jobs:
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
-          java-version: '17'
-          distribution: 'temurin'
+          java-version: "17"
+          distribution: "temurin"
 
-      - name: Install Gradle 8.4
-        run: |
-          wget -q https://services.gradle.org/distributions/gradle-8.4-bin.zip
-          unzip -q gradle-8.4-bin.zip -d /opt/gradle
-          echo "/opt/gradle/gradle-8.4/bin" >> $GITHUB_PATH
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.4"
 
       - name: Prepare Launcher Icon
         run: |
           mkdir -p app/src/main/res/drawable
-          test -f app/src/main/res/drawable/ic_launcher.xml
+
+          cat > app/src/main/res/drawable/ic_launcher.xml <<'EOF'
+          <vector xmlns:android="http://schemas.android.com/apk/res/android"
+              android:width="108dp"
+              android:height="108dp"
+              android:viewportWidth="108"
+              android:viewportHeight="108">
+
+              <path
+                  android:fillColor="#0B2A6F"
+                  android:pathData="M54,4 L96,20 L90,68 L54,104 L18,68 L12,20 Z"/>
+
+              <path
+                  android:fillColor="#1E63F0"
+                  android:pathData="M54,10 L90,24 L85,65 L54,96 L23,65 L18,24 Z"/>
+
+              <path
+                  android:fillColor="#FFFFFF"
+                  android:pathData="M59,17 L36,57 L51,57 L45,88 L73,46 L56,46 Z"/>
+          </vector>
+          EOF
 
       - name: Build Debug APK
         run: gradle assembleDebug --no-daemon
