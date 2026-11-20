@@ -3,12 +3,13 @@ name: Build RICK-GAMING APK
 
 on:
   push:
-    branches: ["main"]
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout Code
@@ -18,40 +19,39 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "17"
+          java-version: '17'
 
       - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
 
-      - name: Setup Gradle
+      - name: Setup Gradle 8.4
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: "8.4"
+          gradle-version: '8.4'
 
-      - name: Locate Android Project
+      - name: Find Android Project
         id: project
         shell: bash
         run: |
-          SETTINGS=$(find . -maxdepth 4 \
+          SETTINGS=$(find . -type f \
             \( -name settings.gradle -o -name settings.gradle.kts \) \
-            -print -quit)
+            -not -path './.git/*' -print -quit)
 
           if [ -z "$SETTINGS" ]; then
-            echo "ERROR: Gradle settings file not found!"
+            echo "ERROR: settings.gradle not found"
             exit 1
           fi
 
-          ROOT_DIR=$(dirname "$SETTINGS")
-          echo "dir=$ROOT_DIR" >> "$GITHUB_OUTPUT"
+          ROOT=$(dirname "$SETTINGS")
+          echo "dir=$ROOT" >> "$GITHUB_OUTPUT"
+          echo "Project root: $ROOT"
 
-      - name: Check Launcher Icon
-        working-directory: ${{ steps.project.outputs.dir }}
+      - name: Check Android SDK
         run: |
-          echo "Checking Android launcher icon..."
-          find . -path "*/src/main/res/*" \
-            -name "ic_launcher*" -type f
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          sdkmanager --version
 
-      - name: Build Debug APK
+      - name: Build RICK GAMING APK
         working-directory: ${{ steps.project.outputs.dir }}
         run: |
           gradle --no-daemon assembleDebug
@@ -60,5 +60,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: RICK-GAMING-APK
-          path: "**/build/outputs/apk/debug/*.apk"
+          path: '**/build/outputs/apk/debug/*.apk'
           if-no-files-found: error
