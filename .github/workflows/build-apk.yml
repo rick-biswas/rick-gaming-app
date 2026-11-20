@@ -1,15 +1,14 @@
 
-name: Build RICK-GAMING APK
+name: Build RICK GAMING APK
 
 on:
   push:
-    branches:
-      - main
+    branches: ["main"]
   workflow_dispatch:
 
 jobs:
   build:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout Code
@@ -19,39 +18,74 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
-
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v4
-
-      - name: Setup Gradle 8.4
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '8.4'
-
-      - name: Find Android Project
-        id: project
-        shell: bash
-        run: |
-          SETTINGS=$(find . -type f \
-            \( -name settings.gradle -o -name settings.gradle.kts \) \
-            -not -path './.git/*' -print -quit)
-
-          if [ -z "$SETTINGS" ]; then
-            echo "ERROR: settings.gradle not found"
-            exit 1
-          fi
-
-          ROOT=$(dirname "$SETTINGS")
-          echo "dir=$ROOT" >> "$GITHUB_OUTPUT"
-          echo "Project root: $ROOT"
+          java-version: "17"
 
       - name: Check Android SDK
         run: |
-          echo "ANDROID_HOME=$ANDROID_HOME"
-          sdkmanager --version
+          echo "Checking Android SDK..."
+          if [ -z "$ANDROID_HOME" ] || [ ! -d "$ANDROID_HOME" ]; then
+            echo "Android SDK not found on runner"
+            exit 1
+          fi
+          echo "Android SDK found: $ANDROID_HOME"
 
-      - name: Build RICK GAMING APK
+      - name: Install Gradle 8.4
+        run: |
+          wget -q https://services.gradle.org/distributions/gradle-8.4-bin.zip -O gradle.zip
+          unzip -q gradle.zip -d /opt/gradle
+          echo "/opt/gradle/gradle-8.4/bin" >> "$GITHUB_PATH"
+
+      - name: Locate Android Project
+        id: project
+        shell: bash
+        run: |
+          SETTINGS=$(find . -maxdepth 5 \
+            \( -name settings.gradle -o -name settings.gradle.kts \) \
+            -print -quit)
+
+          if [ -z "$SETTINGS" ]; then
+            echo "Gradle settings file not found!"
+            exit 1
+          fi
+
+          ROOT_DIR=$(dirname "$SETTINGS")
+          echo "dir=$ROOT_DIR" >> "$GITHUB_OUTPUT"
+          echo "Project: $ROOT_DIR"
+
+      - name: Create Launcher Icon
+        working-directory: ${{ steps.project.outputs.dir }}
+        shell: bash
+        run: |
+          FOUND=0
+
+          while IFS= read -r MANIFEST; do
+            MODULE=$(dirname "$(dirname "$MANIFEST")")
+            mkdir -p "$MODULE/res/drawable"
+
+            cat > "$MODULE/res/drawable/ic_launcher.xml" <<'EOF'
+          <vector xmlns:android="http://schemas.android.com/apk/res/android"
+              android:width="48dp"
+              android:height="48dp"
+              android:viewportWidth="48"
+              android:viewportHeight="48">
+              <path
+                  android:fillColor="#0B2A6F"
+                  android:pathData="M0,0h48v48h-48z"/>
+              <path
+                  android:fillColor="#1E63F0"
+                  android:pathData="M28,3L12,26h10l-2,19 16,-26H26z"/>
+          </vector>
+          EOF
+            FOUND=1
+            echo "Launcher icon created for $MANIFEST"
+          done < <(find . -path '*/src/main/AndroidManifest.xml' -type f)
+
+          if [ "$FOUND" -eq 0 ]; then
+            echo "AndroidManifest.xml not found!"
+            exit 1
+          fi
+
+      - name: Build Debug APK
         working-directory: ${{ steps.project.outputs.dir }}
         run: |
           gradle --no-daemon assembleDebug
@@ -60,5 +94,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: RICK-GAMING-APK
-          path: '**/build/outputs/apk/debug/*.apk'
+          path: "**/build/outputs/apk/debug/*.apk"
           if-no-files-found: error
+          retention-days: 7
