@@ -11,54 +11,54 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Set up JDK 17
+      - name: Setup JDK 17
         uses: actions/setup-java@v4
         with:
+          distribution: temurin
           java-version: "17"
-          distribution: "temurin"
 
-      - name: Set up Android SDK
+      - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Set up Gradle
+      - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.4"
 
-      - name: Prepare Launcher Icon
+      - name: Locate Android Project
+        id: project
+        shell: bash
         run: |
-          mkdir -p app/src/main/res/drawable
+          SETTINGS=$(find . -maxdepth 4 \
+            \( -name settings.gradle -o -name settings.gradle.kts \) \
+            -print -quit)
 
-          cat > app/src/main/res/drawable/ic_launcher.xml <<'EOF'
-          <vector xmlns:android="http://schemas.android.com/apk/res/android"
-              android:width="108dp"
-              android:height="108dp"
-              android:viewportWidth="108"
-              android:viewportHeight="108">
+          if [ -z "$SETTINGS" ]; then
+            echo "ERROR: Gradle settings file not found!"
+            exit 1
+          fi
 
-              <path
-                  android:fillColor="#0B2A6F"
-                  android:pathData="M54,4 L96,20 L90,68 L54,104 L18,68 L12,20 Z"/>
+          ROOT_DIR=$(dirname "$SETTINGS")
+          echo "dir=$ROOT_DIR" >> "$GITHUB_OUTPUT"
 
-              <path
-                  android:fillColor="#1E63F0"
-                  android:pathData="M54,10 L90,24 L85,65 L54,96 L23,65 L18,24 Z"/>
-
-              <path
-                  android:fillColor="#FFFFFF"
-                  android:pathData="M59,17 L36,57 L51,57 L45,88 L73,46 L56,46 Z"/>
-          </vector>
-          EOF
+      - name: Check Launcher Icon
+        working-directory: ${{ steps.project.outputs.dir }}
+        run: |
+          echo "Checking Android launcher icon..."
+          find . -path "*/src/main/res/*" \
+            -name "ic_launcher*" -type f
 
       - name: Build Debug APK
-        run: gradle assembleDebug --no-daemon
+        working-directory: ${{ steps.project.outputs.dir }}
+        run: |
+          gradle --no-daemon assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: RICK-GAMING-APK
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: "**/build/outputs/apk/debug/*.apk"
           if-no-files-found: error
