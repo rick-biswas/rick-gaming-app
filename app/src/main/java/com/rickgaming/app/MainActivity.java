@@ -1,54 +1,33 @@
 package com.rickgaming.app;
 
-import android.annotation.SuppressLint;
+import android.app.Activity;
+import android.content.ActivityNotFoundException;
+import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
-import android.webkit.WebChromeClient;
-import android.webkit.WebSettings;
-import android.webkit.WebView;
-import android.webkit.WebViewClient;
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends Activity {
 
-    private WebView webView;
-    private SwipeRefreshLayout swipeRefresh;
     private static final String TARGET_URL = "https://rick-biswas.github.io/RICK-GAMING/";
+    private static final String CHROME_PACKAGE = "com.android.chrome";
 
-    @SuppressLint("SetJavaScriptEnabled")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
 
-        swipeRefresh = findViewById(R.id.swipeRefresh);
-        webView = findViewById(R.id.webView);
+        Uri uri = Uri.parse(TARGET_URL);
 
-        WebSettings settings = webView.getSettings();
-        settings.setJavaScriptEnabled(true);
-        settings.setDomStorageEnabled(true);
-        settings.setDatabaseEnabled(true);
-        settings.setLoadWithOverviewMode(true);
-        settings.setUseWideViewPort(true);
-        settings.setAllowFileAccess(true);
-
-        webView.setWebChromeClient(new WebChromeClient());
-
-        swipeRefresh.setOnRefreshListener(() -> webView.reload());
-        webView.setWebViewClient(new WebViewClient() {
-            @Override
-            public void onPageFinished(WebView view, String url) {
-                swipeRefresh.setRefreshing(false);
-            }
-        });
-
-        webView.loadUrl(TARGET_URL);
-    }
-
-    @Override
-    public void onBackPressed() {
-        if (webView.canGoBack()) {
-            webView.goBack();
-        } else {
-            super.onBackPressed();
+        try {
+            Intent chromeIntent = new Intent(Intent.ACTION_VIEW, uri);
+            chromeIntent.setPackage(CHROME_PACKAGE);
+            chromeIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(chromeIntent);
+        } catch (ActivityNotFoundException e) {
+            Intent defaultBrowserIntent = new Intent(Intent.ACTION_VIEW, uri);
+            defaultBrowserIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(defaultBrowserIntent);
         }
+
+        finish();
+    }
+}
