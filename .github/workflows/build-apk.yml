@@ -1,69 +1,127 @@
-
-name: Build RICK GAMING APK
+name: Build RICK-GAMING APK
 
 on:
   push:
-    branches: ["main"]
+    branches: [ "main" ]
   workflow_dispatch:
-
-permissions:
-  contents: read
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Code
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup JDK 17
+      - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
-          distribution: temurin
           java-version: '17'
+          distribution: 'temurin'
+
+      - name: Prepare Gradle Wrapper files
+        run: |
+          mkdir -p gradle/wrapper
+          cat << 'EOF' > gradle/wrapper/gradle-wrapper.properties
+          distributionBase=GRADLE_USER_HOME
+          distributionPath=wrapper/dists
+          distributionUrl=https\://services.gradle.org/distributions/gradle-8.4-bin.zip
+          networkTimeout=10000
+          validateDistributionUrl=true
+          zipStoreBase=GRADLE_USER_HOME
+          zipStorePath=wrapper/dists
+          EOF
+          cat << 'EOF' > gradlew
+          #!/usr/bin/env sh
+          exec gradle "$@"
+          EOF
+          chmod +x gradlew
 
       - name: Install Gradle 8.4
         run: |
           wget -q https://services.gradle.org/distributions/gradle-8.4-bin.zip -O gradle.zip
-          unzip -q gradle.zip -d "$RUNNER_TEMP/gradle"
-          echo "$RUNNER_TEMP/gradle/gradle-8.4/bin" >> "$GITHUB_PATH"
+          unzip -q gradle.zip -d /opt/gradle
+          echo "/opt/gradle/gradle-8.4/bin" >> $GITHUB_PATH
 
-      - name: Check Android Project
+      - name: Normalize project files and write MainActivity
         run: |
-          test -f settings.gradle || test -f settings.gradle.kts
-          test -f app/src/main/AndroidManifest.xml
+          python3 -c '
+          import glob, os, re
 
-      - name: Fix Launcher Icon
-        run: |
-          mkdir -p app/src/main/res/drawable
+          # Clean manifest icon references
+          for m in glob.glob("**/AndroidManifest.xml", recursive=True):
+              if "build/" in m:
+                  continue
+              with open(m, "r", encoding="utf-8", errors="ignore") as f:
+                  content = f.read()
+              new_content = re.sub(r"\s*android:(?:roundIcon|icon)=\"[^\"]*ic_launcher[^\"]*\"", "", content)
+              if new_content != content:
+                  with open(m, "w", encoding="utf-8") as f:
+                      f.write(new_content)
 
-          if [ ! -f app/src/main/res/drawable/ic_launcher.png ] && \
-             [ ! -f app/src/main/res/drawable/ic_launcher.xml ]; then
+          # Ensure app/build.gradle compiles cleanly on SDK 34
+          for g in glob.glob("**/app/build.gradle", recursive=True):
+              if "build/" in g:
+                  continue
+              with open(g, "r", encoding="utf-8", errors="ignore") as f:
+                  gcontent = f.read()
+              gcontent = re.sub(r"compileSdk\s+\d+", "compileSdk 34", gcontent)
+              gcontent = re.sub(r"targetSdk\s+\d+", "targetSdk 34", gcontent)
+              if "namespace " not in gcontent:
+                  gcontent = re.sub(
+                      r"(android\s*\{)",
+                      r"\1\n    namespace \"com.rickgaming.app\"",
+                      gcontent,
+                      count=1
+                  )
+              with open(g, "w", encoding="utf-8") as f:
+                  f.write(gcontent)
 
-            cat > app/src/main/res/drawable/ic_launcher.xml <<'EOF'
-          <vector xmlns:android="http://schemas.android.com/apk/res/android"
-              android:width="108dp"
-              android:height="108dp"
-              android:viewportWidth="108"
-              android:viewportHeight="108">
+          # Remove old .java files and write clean MainActivity.java
+          for jdir in glob.glob("**/src/main/java", recursive=True):
+              if "build/" in jdir:
+                  continue
+              for root, _, files in os.walk(jdir):
+                  for fn in files:
+                      if fn.endswith(".java"):
+                          os.remove(os.path.join(root, fn))
+              target_dir = os.path.join(jdir, "com", "rickgaming", "app")
+              os.makedirs(target_dir, exist_ok=True)
+              java_code = """package com.rickgaming.app;
 
-              <path
-                  android:fillColor="#0B2A6F"
-                  android:pathData="M0,0h108v108h-108z"/>
+          import android.app.Activity;
+          import android.content.ActivityNotFoundException;
+          import android.content.Intent;
+          import android.net.Uri;
+          import android.os.Bundle;
 
-              <path
-                  android:fillColor="#4FA3FF"
-                  android:pathData="M61,8L25,60h23l-5,40 40,-57L58,43z"/>
-          </vector>
-          EOF
-          fi
+          public class MainActivity extends Activity {
+              @Override
+              protected void onCreate(Bundle savedInstanceState) {
+                  super.onCreate(savedInstanceState);
+                  String url = "https://rick-biswas.github.io/RICK-GAMING/";
+                  Uri uri = Uri.parse(url);
+                  try {
+                      Intent intent = new Intent(Intent.ACTION_VIEW, uri);
+                      intent.setPackage("com.android.chrome");
+                      startActivity(intent);
+                  } catch (ActivityNotFoundException e) {
+                      Intent fallback = new Intent(Intent.ACTION_VIEW, uri);
+                      startActivity(fallback);
+                  }
+                  finish();
+              }
+          }
+          """
+              with open(os.path.join(target_dir, "MainActivity.java"), "w", encoding="utf-8") as f:
+                  f.write(java_code)
+          '
 
-      - name: Build RICK GAMING APK
-        run: gradle assembleDebug --no-daemon
+      - name: Build Debug APK
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: RICK-GAMING-APK
-          path: app/build/outputs/apk/debug/*.apk
+          path: app/build/outputs/apk/debug/app-debug.apk
