@@ -115,4 +115,3 @@ jobs:
           """
               with open(os.path.join(target_dir, "MainActivity.java"), "w", encoding="utf-8") as f:
                   f.write(java_code)
-          '
