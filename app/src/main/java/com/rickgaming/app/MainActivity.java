@@ -23,11 +23,6 @@ import android.widget.FrameLayout;
 
 import java.net.URISyntaxException;
 
-/**
- * RICK GAMING — সাইটটা অ্যাপের ভেতরেই (WebView) চলবে।
- * Telegram / WhatsApp / YouTube / ফোন / মেইল — সব বাইরের লিংক ফোনের আসল অ্যাপে খুলবে,
- * তাই "ERR_UNKNOWN_URL_SCHEME" এরর আর আসবে না।
- */
 public class MainActivity extends Activity {
 
     private static final String TARGET_URL = "https://rick-biswas.github.io/RICK-GAMING/";
@@ -42,7 +37,6 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // সাদা স্ট্যাটাস বার (সাইটের হেডারের সাথে মানানসই)
         getWindow().setStatusBarColor(Color.WHITE);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
@@ -50,7 +44,6 @@ public class MainActivity extends Activity {
 
         FrameLayout root = new FrameLayout(this);
         root.setBackgroundColor(Color.WHITE);
-        // নতুন Android-এ স্ট্যাটাস বারের নিচে সাইট ঢুকে যাওয়া ঠেকায়
         root.setOnApplyWindowInsetsListener((v, insets) -> {
             v.setPadding(insets.getSystemWindowInsetLeft(), insets.getSystemWindowInsetTop(),
                     insets.getSystemWindowInsetRight(), insets.getSystemWindowInsetBottom());
@@ -64,8 +57,8 @@ public class MainActivity extends Activity {
         setContentView(root);
 
         WebSettings s = webView.getSettings();
-        s.setJavaScriptEnabled(true);          // সাইট চালানোর জন্য
-        s.setDomStorageEnabled(true);          // localStorage (অর্ডার, অ্যাডমিন লগইন) সেভ থাকার জন্য
+        s.setJavaScriptEnabled(true);
+        s.setDomStorageEnabled(true);
         s.setDatabaseEnabled(true);
         s.setCacheMode(WebSettings.LOAD_DEFAULT);
         s.setLoadWithOverviewMode(true);
@@ -86,7 +79,6 @@ public class MainActivity extends Activity {
 
             @Override
             public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
-                // শুধু মূল পেজ না এলে বন্ধুত্বপূর্ণ বার্তা দেখাবে
                 if (request.isForMainFrame()) {
                     showOffline(view);
                 }
@@ -99,8 +91,6 @@ public class MainActivity extends Activity {
         });
 
         webView.setWebChromeClient(new WebChromeClient() {
-            // alert()/confirm() ঠিকমতো দেখানোর জন্য (WebChromeClient সেট থাকলে WebView নিজেই ডায়ালগ দেখায়)
-            // অ্যাডমিনে ছবি আপলোডের "বদলান" বাটন চালানোর জন্য
             @Override
             public boolean onShowFileChooser(WebView view, ValueCallback<Uri[]> callback,
                                              FileChooserParams params) {
@@ -125,20 +115,16 @@ public class MainActivity extends Activity {
         }
     }
 
-    /**
-     * true = আমরা নিজে সামলেছি (WebView-তে লোড হবে না)
-     * false = সাইটের নিজের পেজ, WebView-তেই লোড হবে
-     */
     private boolean handleUrl(Uri uri) {
         String scheme = uri.getScheme() == null ? "" : uri.getScheme().toLowerCase();
         String host = uri.getHost() == null ? "" : uri.getHost().toLowerCase();
 
-        // নিজের সাইট → অ্যাপের ভেতরেই
+        // নিজের সাইট -> অ্যাপের ভেতরেই
         if ((scheme.equals("http") || scheme.equals("https")) && host.equals(SITE_HOST)) {
             return false;
         }
 
-        // intent:// লিংক (কিছু সাইট/ইউটিউব এটা ব্যবহার করে)
+        // intent:// লিংক
         if (scheme.equals("intent")) {
             try {
                 Intent intent = Intent.parseUri(uri.toString(), Intent.URI_INTENT_SCHEME);
@@ -153,7 +139,7 @@ public class MainActivity extends Activity {
             return true;
         }
 
-        // বাকি সব (t.me, wa.me, youtube.com, tg:, whatsapp:, tel:, mailto: ...) → ফোনের আসল অ্যাপে
+        // বাকি সব (t.me, wa.me, youtube, tg:, whatsapp:, tel:, mailto:) -> ফোনের আসল অ্যাপে
         openExternal(uri);
         return true;
     }
@@ -165,7 +151,6 @@ public class MainActivity extends Activity {
             i.addCategory(Intent.CATEGORY_BROWSABLE);
             startActivity(i);
         } catch (ActivityNotFoundException e) {
-            // অ্যাপ ইনস্টল নেই — https হলে ব্রাউজারে খুলবে, নাহলে চুপ থাকবে (ক্র্যাশ করবে না)
             try {
                 String scheme = uri.getScheme() == null ? "" : uri.getScheme();
                 if (scheme.startsWith("http")) {
@@ -199,7 +184,6 @@ public class MainActivity extends Activity {
         super.onActivityResult(requestCode, resultCode, data);
     }
 
-    // ব্যাক বাটন: আগে সাইটের ভেতরে পেছনে যাবে, শেষে অ্যাপ বন্ধ হবে
     @Override
     public void onBackPressed() {
         if (webView != null && webView.canGoBack()) {
