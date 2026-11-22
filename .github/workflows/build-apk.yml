@@ -1,4 +1,3 @@
-
 name: Deploy RICK-GAMING Website
 
 on:
@@ -38,3 +37,4 @@ jobs:
 
       - name: Deploy Website
         id: deployment
+        uses: actions/deploy-pages@v4
