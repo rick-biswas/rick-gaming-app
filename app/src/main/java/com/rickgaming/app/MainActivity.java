@@ -45,6 +45,7 @@ public class MainActivity extends Activity {
         settings.setAllowContentAccess(true);
         settings.setLoadsImagesAutomatically(true);
         settings.setBlockNetworkImage(false);
+        settings.setUserAgentString(settings.getUserAgentString() + " RickGamingApp/1.0");
         settings.setCacheMode(WebSettings.LOAD_DEFAULT);
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
