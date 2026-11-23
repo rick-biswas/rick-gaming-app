@@ -4,7 +4,10 @@ import android.app.Activity;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
+import android.webkit.CookieManager;
+import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -21,11 +24,28 @@ public class MainActivity extends Activity {
         webView = new WebView(this);
         setContentView(webView);
 
+        CookieManager cookieManager = CookieManager.getInstance();
+        cookieManager.setAcceptCookie(true);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            cookieManager.setAcceptThirdPartyCookies(webView, true);
+        }
+
         WebSettings settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);
+        settings.setJavaScriptCanOpenWindowsAutomatically(true);
         settings.setDomStorageEnabled(true);
+        settings.setDatabaseEnabled(true);
         settings.setLoadWithOverviewMode(true);
         settings.setUseWideViewPort(true);
+        settings.setAllowFileAccess(true);
+        settings.setAllowContentAccess(true);
+        settings.setCacheMode(WebSettings.LOAD_DEFAULT);
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
+        }
+
+        webView.setWebChromeClient(new WebChromeClient());
 
         webView.setWebViewClient(new WebViewClient() {
             @Override
@@ -33,7 +53,8 @@ public class MainActivity extends Activity {
                 if (url == null) return false;
 
                 if (url.startsWith("http://") || url.startsWith("https://")) {
-                    if (url.contains("t.me/") || url.contains("telegram.me/") || url.contains("wa.me/") || url.contains("api.whatsapp.com")) {
+                    if (url.contains("t.me/") || url.contains("telegram.me/")
+                            || url.contains("wa.me/") || url.contains("api.whatsapp.com")) {
                         try {
                             Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
                             startActivity(intent);
@@ -43,8 +64,7 @@ public class MainActivity extends Activity {
                             return true;
                         }
                     }
-                    view.loadUrl(url);
-                    return true;
+                    return false;
                 }
 
                 try {
